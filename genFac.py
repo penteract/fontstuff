@@ -31,14 +31,13 @@ def makeFactorer(scratch, digs="zero one two three four five six seven eight nin
     res.append("} init;")
     #special case 0 and 1
     res.append("lookup ini2{")
-    res.append(f"sub {e1} {digs[0]} {e1}' by {e1} ;")
-    res.append(f"sub {e1} {digs[1]} {e1}' by {e1} ;")
-    res.append(f"sub {digs[0]} {e1}' by {e2} ;")
-    res.append(f"sub {digs[1]} {e1}' by {e2} ;")
+    res.append(f"sub [{e1} {e2}] [{digs[0]} {digs[1]}]  {e1}' by {e1} ;")
+    res.append(f"sub [{digs[1]} {digs[0]}] {e1}' by {e2} ;")
     res.append("} ini2;")
     
     res.append("lookup ini3{")
     res.append(f"sub {e1}' @digs by NULL ;")
+    res.append(f"sub {e2}' @digs by NULL ;")
     res.append("} ini3;")
     for p in range(int(len(scratch)/base)+1):
         if isprime(p):
@@ -59,7 +58,11 @@ def makeFactorer(scratch, digs="zero one two three four five six seven eight nin
             for d in digs:
                 res.append(f"sub @Dig{d} by {d};")
             res.append("} t"+str(p)+";")
-    #TODO: special case 0 and 1
+    
+    res.append("lookup fin{")
+    res.append(f"sub {e1} by p r i m e ;")
+    res.append(f"sub {e2} by NULL ;")
+    res.append("} fin;")
     res.append("} liga;")
     return "\n".join(res)
 l = ['uniAB30', 'uniAB31', 'uniAB32', 'uniAB33', 'uniAB34', 'uniAB35', 'uniAB36', 'uniAB37', 'uniAB38', 'uniAB39', 'uniAB3A', 'uniAB3B', 'uniAB3C',
@@ -84,15 +87,22 @@ if __name__=="__main__":
     if not (a.feature or a.modify):
         raise Exception("At least one of --feature and --modify must be specified")
     #print(a.scratch)
+    if len(a.scratch)<2:
+        assert a.scratch==["uni"] and a.modify
+        import fontTools.ttLib.ttFont
+        fnt = fontTools.ttLib.ttFont.TTFont(a.modify)
+        a.scratch=[x for x in fnt.getGlyphNames() if x.startswith("uni") and "." not in x][:200]
     f=makeFactorer(a.scratch,a.digits)
     if a.feature:
         a.feature.write(f)
+        
     if(a.modify):
         assert a.fontout
         import fontTools.feaLib.parser
         import fontTools.feaLib.builder 
         import fontTools.ttLib.ttFont
         fnt = fontTools.ttLib.ttFont.TTFont(a.modify)
+        
         from io import StringIO
         fea = fontTools.feaLib.parser.Parser(StringIO(f),fnt.getReverseGlyphMap()).parse()
         fontTools.feaLib.builder.addOpenTypeFeatures(fnt,fea)
